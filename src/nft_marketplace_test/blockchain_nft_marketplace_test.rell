@@ -1,0 +1,24 @@
+// Test module using the scope of blockchain nft-marketplace.
+@test module;
+
+import nft_marketplace.*;
+
+function test_users() {
+    // check if the users do not exist
+    assert_fails(authenticate_user("Alice", "first1", *));
+    assert_fails(authenticate_user("Bob", "second2", *));
+
+    // create users for Alice and Bob
+    rell.test.tx()
+        .op(create_user("Alice", "first1"))
+        .op(create_user("Bob", "second2"))
+        .run();
+
+    // check if the users were created
+    assert_true(authenticate_user("Alice", "first1"));
+    assert_true(authenticate_user("Bob", "second2"));
+
+    // check that credentials need to be correct
+    assert_fails(authenticate_user("Alice", "second2", *));
+    assert_fails(authenticate_user("Bob", "first1", *));
+}

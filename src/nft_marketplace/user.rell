@@ -1,0 +1,23 @@
+entity user {
+    key username: text;
+    password_hash: byte_array;
+}
+
+function hash_function(password: text): byte_array {
+    return password.to_bytes().sha256();
+    //return keccak256(password.to_bytes());
+}
+
+operation create_user(username: text, password: text) {
+    create user(username = username, password_hash = hash_function(password));
+}
+
+function authenticate_user(username: text, password: text): boolean {
+    val nullable_password_hash = user @ ? { .username == username } ( .password_hash );    
+    require(nullable_password_hash != null, "user not found");
+
+    val password_hash = require(nullable_password_hash);
+    require(password_hash == hash_function(password), "Invalid password");
+
+    return true;
+}

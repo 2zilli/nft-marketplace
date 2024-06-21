@@ -1,0 +1,13 @@
+blockchains:
+  nft-marketplace:
+    module: main
+    test:
+      modules:
+        - nft_marketplace_test
+compile:
+  rellVersion: 0.13.5
+database:
+  schema: schema_nft_marketplace
+test:
+  modules:
+    - nft_marketplace.test

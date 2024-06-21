@@ -1,0 +1,21 @@
+
+
+entity nft {
+    key id: integer;
+    description: text;
+    mutable owner: text;
+    index owner;
+}
+
+operation mint_nft(username: text, password: text, description: text) {
+    authenticate_user(username, password); // this function reverts if authentication fails
+
+    // TODO: Decide if the user should pay something here
+
+    val last_id = nft @ ? { } ( @sort_desc .id ) limit 1;
+    if (last_id == null) {
+        create nft(id = 0, description = description, owner = username);
+    } else {
+        create nft(id = last_id + 1, description = description, owner = username);
+    }
+}
