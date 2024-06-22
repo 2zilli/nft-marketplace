@@ -1,23 +1,52 @@
+/*
+Entity definition for a user.
+The 'username' field serves as the unique identifier (primary key).
+The 'password_hash' field stores the hashed password for authentication purposes.
+*/
 entity user {
     key username: text;
     password_hash: byte_array;
 }
 
+/*
+Function to hash a password.
+This function takes a plain text password, converts it to bytes, and then returns the SHA-256 hash of the byte array.
+*/
 function hash_function(password: text): byte_array {
     return password.to_bytes().sha256();
-    //return keccak256(password.to_bytes());
 }
 
+/*
+Operation to create a new user.
+This operation takes a username and a plain text password, hashes the password using 'hash_function',
+and then creates a new user entity with the username and the hashed password.
+*/
 operation create_user(username: text, password: text) {
     create user(username = username, password_hash = hash_function(password));
 }
 
-function authenticate_user(username: text, password: text): boolean {
-    val nullable_password_hash = user @ ? { .username == username } ( .password_hash );    
-    require(nullable_password_hash != null, "user not found");
+/*
+Function to authenticate a user or revert if authentication fails.
+This function takes a username and a plain text password, and performs the following steps:
+1. Retrieves the stored password hash for the given username.
+2. Checks if the user exists; if not, it reverts with an error message "User not found".
+3. Compares the stored password hash with the hash of the provided password.
+4. If the hashes match, authentication is successful and the function returns true.
+5. If the hashes do not match, it reverts with an error message "Invalid password".
+*/
+function authenticate_or_revert(username: text, password: text): boolean {
+    // Retrieve the stored password hash for the given username.
+    val nullable_password_hash = user @ ? { .username == username } ( .password_hash );
 
+    // Check if the user exists; if not, revert with an error message.
+    require(nullable_password_hash != null, "User not found");
+
+    // Extract the password hash from the nullable value.
     val password_hash = require(nullable_password_hash);
+
+    // Compare the stored password hash with the hash of the provided password.
     require(password_hash == hash_function(password), "Invalid password");
 
+    // If authentication is successful, return true.
     return true;
 }

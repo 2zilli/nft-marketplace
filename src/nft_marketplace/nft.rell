@@ -1,21 +1,61 @@
 
 
 entity nft {
-    key id: integer;
+    key nft_id: integer;
     description: text;
     mutable owner: text;
+    collection_id: integer;
+    created: timestamp;
+    
+    index owner;
+    index collection_id;
+}
+
+entity nft_collection {
+    key collection_id: integer;
+    description: text;
+    mutable owner: text;
+    created: timestamp;
+
     index owner;
 }
 
-operation mint_nft(username: text, password: text, description: text) {
-    authenticate_user(username, password); // this function reverts if authentication fails
+operation mint_nft(username: text, password: text, description: text, collection_id: integer = -1) {
+    authenticate_or_revert(username, password); // this function reverts if authentication fails
 
     // TODO: Decide if the user should pay something here
 
-    val last_id = nft @ ? { } ( @sort_desc .id ) limit 1;
-    if (last_id == null) {
-        create nft(id = 0, description = description, owner = username);
-    } else {
-        create nft(id = last_id + 1, description = description, owner = username);
+    // Next valid nft id
+    var nft_id = nft @ ? { } ( @sort_desc .nft_id ) limit 1;
+    if (nft_id == null) {
+        nft_id = -1;
     }
+    nft_id++;
+
+    if (collection_id >= 0) {
+        // Valid collection_id?
+        require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Bad collection id!");
+
+        // Is user collection owner?
+        require(nft_collection @ ? { .collection_id == collection_id and .owner == username } ( .collection_id ) != null, "Not collection owner!");
+    }
+
+    // Mint the NFT
+    create nft(nft_id = nft_id, description = description, owner = username, collection_id = collection_id, created = op_context.last_block_time);
+}
+
+operation create_collection(username: text, password: text, description: text) {
+    authenticate_or_revert(username, password);
+
+    // TODO: Decide is the user should pay something here
+
+    // Next valid collection id
+    var collection_id = nft_collection @ ? { } ( @sort_desc .collection_id ) limit 1;
+    if (collection_id == null) {
+        collection_id = -1;
+    }
+    collection_id++;
+
+    // Create the collection
+    create nft_collection(collection_id = collection_id, description = description, owner = username, created = op_context.last_block_time);
 }

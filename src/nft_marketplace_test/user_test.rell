@@ -1,0 +1,60 @@
+// Test module using the scope of blockchain nft-marketplace.
+@test module;
+
+import nft_marketplace.*;
+
+// Test if users do not exist initially
+function test_user_does_not_exist_initially() {
+    // Check if users do not exist initially.
+    assert_fails(authenticate_or_revert("Alice", "alicePassword", *));
+    assert_fails(authenticate_or_revert("Bob", "bobPassword", *));
+}
+
+// Test user creation
+function test_create_users() {
+    // Create users for Alice and Bob.
+    rell.test.tx()
+        .op(create_user("Alice", "alicePassword"))
+        .op(create_user("Bob", "bobPassword"))
+        .run();
+}
+
+// Test user authentication
+function test_user_authentication() {
+    // Create users for Alice and Bob first
+    rell.test.tx()
+        .op(create_user("Alice", "alicePassword"))
+        .op(create_user("Bob", "bobPassword"))
+        .run();
+
+    // Check if the users were created and can be authenticated.
+    assert_true(authenticate_or_revert("Alice", "alicePassword"));
+    assert_true(authenticate_or_revert("Bob", "bobPassword"));
+}
+
+// Test that incorrect credentials fail authentication
+function test_incorrect_credentials_fail_authentication() {
+    // Create users for Alice and Bob first
+    rell.test.tx()
+        .op(create_user("Alice", "alicePassword"))
+        .op(create_user("Bob", "bobPassword"))
+        .run();
+
+    // Check that incorrect credentials fail authentication.
+    assert_fails(authenticate_or_revert("Alice", "bobPassword", *));
+    assert_fails(authenticate_or_revert("Bob", "alicePassword", *));
+}
+
+// Test Duplicate User Registration
+function test_duplicate_user_registration() {
+    // Create a user with the username 'Charlie'.
+    rell.test.tx()
+        .op(create_user("Charlie", "charliePassword"))
+        .run();
+
+    // Attempt to create another user with the same username 'Charlie'.
+    // This should fail as usernames must be unique.
+    assert_fails(rell.test.tx()
+        .op(create_user("Charlie", "anotherPassword"))
+        .run(*));
+}
