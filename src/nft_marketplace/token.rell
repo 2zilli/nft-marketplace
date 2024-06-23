@@ -1,141 +1,141 @@
-/*
-Object representing the Token Admin.
-*/
-object token_admin {
-    name: text = "Token";       // Name of the admin.
-    password: byte_array = x"0738a3e2111e114a665d35b24be5f42d1f98700f161633f63fbaa15b4b3103ab";  // Hashed password for the admin.
-}
-
-/*
-Object representing the Fees for various operations.
-This could be updateable by the admin (or another role) but isn't implemented in this example.
-
-Potential fees:
-- mint_nft: Fee for minting a new NFT.
-- create_collection: Fee for creating a new NFT collection.
-- add_to_favorites: Fee for adding an item to the favorites list.
-
-Usage example (not implemented):
-- Check user's balance before an operation.
-- Deduct the fee from the user's balance.
-- Record the transaction.
-
-Note: The fees object is commented out as it is a concept rather than an implemented feature.
-*/
-// object fees {
-//     mint_nft: integer = 10;  // Fee for minting an NFT.
-//     create_collection: integer = 5;  // Fee for creating a collection.
-//     add_to_favorites: integer = 1;  // Fee for adding an item to favorites.
+// /*
+// Object representing the Token Admin.
+// */
+// object token_admin {
+//     name: text = "Token";       // Name of the admin.
+//     password: byte_array = x"0738a3e2111e114a665d35b24be5f42d1f98700f161633f63fbaa15b4b3103ab";  // Hashed password for the admin.
 // }
 
-/*
-Entity representing the balances of users.
-*/
-entity balance {
-    key username: text;  // Username of the user.
-    mutable amount: integer;  // Balance amount of the user.
-}
+// /*
+// Object representing the Fees for various operations.
+// This could be updateable by the admin (or another role) but isn't implemented in this example.
 
-/*
-Entity representing a token transfer.
-This keeps a historical reference of all transfers.
-*/
-@log entity token_transfer {
-    key tx_id: integer;  // Unique identifier for the transaction.
-    from_username: text; // Sender of the tokens.
-    to_username: text;   // Receiver of the tokens.
-    amount: integer;     // Amount of tokens transferred.
-    timestamp: timestamp;  // Timestamp of the transaction.
+// Potential fees:
+// - mint_nft: Fee for minting a new NFT.
+// - create_collection: Fee for creating a new NFT collection.
+// - add_to_favorites: Fee for adding an item to the favorites list.
 
-    index from_username;  // Index to query transactions by sender.
-    index to_username;    // Index to query transactions by receiver.
-}
+// Usage example (not implemented):
+// - Check user's balance before an operation.
+// - Deduct the fee from the user's balance.
+// - Record the transaction.
 
-/*
-Operation to mint tokens.
-Params:
-- admin_password: text - Password of the admin.
-- receiver: text - Username of the user to receive the tokens.
-- amount: integer - Amount of tokens to mint.
-*/
-operation mint_tokens(admin_password: text, receiver: text, amount: integer) {
-    // Authenticate the admin.
-    require(hash_function(admin_password) == token_admin.password, "Invalid admin password");
+// Note: The fees object is commented out as it is a concept rather than an implemented feature.
+// */
+// // object fees {
+// //     mint_nft: integer = 10;  // Fee for minting an NFT.
+// //     create_collection: integer = 5;  // Fee for creating a collection.
+// //     add_to_favorites: integer = 1;  // Fee for adding an item to favorites.
+// // }
 
-    // Ensure the receiver exists.
-    require(user @ ? { .username == receiver } != null, "User doesn't exist");
-    print("User: ", receiver, " exists");
+// /*
+// Entity representing the balances of users.
+// */
+// entity balance {
+//     key username: text;  // Username of the user.
+//     mutable amount: integer;  // Balance amount of the user.
+// }
 
-    // Ensure the amount to mint is greater than 0.
-    require(amount > 0, "Amount should be greater than 0");
+// /*
+// Entity representing a token transfer.
+// This keeps a historical reference of all transfers.
+// */
+// @log entity token_transfer {
+//     key tx_id: integer;  // Unique identifier for the transaction.
+//     from_username: text; // Sender of the tokens.
+//     to_username: text;   // Receiver of the tokens.
+//     amount: integer;     // Amount of tokens transferred.
+//     timestamp: timestamp;  // Timestamp of the transaction.
 
-    // Increase the balance of the receiver.
-    var user_balance = balance @ ? { .username == receiver } ( .amount );
-    if (user_balance == null) {
-        create balance(username = receiver, amount = amount);
-    } else {
-        update balance @ { .username == receiver } ( .amount = user_balance + amount );
-    }
+//     index from_username;  // Index to query transactions by sender.
+//     index to_username;    // Index to query transactions by receiver.
+// }
 
-    // Record the minting transaction from the admin to the receiver.
-    var tx_id = token_transfer @ ? { } ( @sort_desc .tx_id ) limit 1;
-    if (tx_id == null) {
-        tx_id = 0;
-    } else {
-        tx_id++;
-    }
-    create token_transfer(tx_id = tx_id, from_username = token_admin.name, to_username = receiver, amount = amount, timestamp = op_context.last_block_time);
-}
+// /*
+// Operation to mint tokens.
+// Params:
+// - admin_password: text - Password of the admin.
+// - receiver: text - Username of the user to receive the tokens.
+// - amount: integer - Amount of tokens to mint.
+// */
+// operation mint_tokens(admin_password: text, receiver: text, amount: integer) {
+//     // Authenticate the admin.
+//     require(hash_function(admin_password) == token_admin.password, "Invalid admin password");
 
-/*
-Operation to transfer tokens.
-Params:
-- from_username: text - Username of the sender.
-- from_password: text - Password of the sender.
-- to_username: text - Username of the receiver.
-- amount: integer - Amount of tokens to transfer.
-*/
-operation transfer(from_username: text, from_password: text, to_username: text, amount: integer) {
-    // Authenticate the sender.
-    authenticate_or_revert(from_username, from_password);
+//     // Ensure the receiver exists.
+//     require(user @ ? { .username == receiver } != null, "User doesn't exist");
+//     print("User: ", receiver, " exists");
 
-    // Ensure the amount to transfer is greater than 0.
-    require(amount > 0, "Amount should be greater than 0");
+//     // Ensure the amount to mint is greater than 0.
+//     require(amount > 0, "Amount should be greater than 0");
 
-    // Ensure the receiver exists
-    require(user @ ? { .username == to_username } != null, "Receiver doesn't exist");
+//     // Increase the balance of the receiver.
+//     var user_balance = balance @ ? { .username == receiver } ( .amount );
+//     if (user_balance == null) {
+//         create balance(username = receiver, amount = amount);
+//     } else {
+//         update balance @ { .username == receiver } ( .amount = user_balance + amount );
+//     }
 
-    // Check the sender's balance.
-    var sender_balance = balance @ { .username == from_username } ( .amount );
-    require(sender_balance >= amount, "Insufficient balance");
+//     // Record the minting transaction from the admin to the receiver.
+//     var tx_id = token_transfer @ ? { } ( @sort_desc .tx_id ) limit 1;
+//     if (tx_id == null) {
+//         tx_id = 0;
+//     } else {
+//         tx_id++;
+//     }
+//     create token_transfer(tx_id = tx_id, from_username = token_admin.name, to_username = receiver, amount = amount, timestamp = op_context.last_block_time);
+// }
 
-    // Deduct the amount from the sender's balance.
-    update balance @ { .username == from_username } ( .amount = sender_balance - amount );
+// /*
+// Operation to transfer tokens.
+// Params:
+// - from_username: text - Username of the sender.
+// - from_password: text - Password of the sender.
+// - to_username: text - Username of the receiver.
+// - amount: integer - Amount of tokens to transfer.
+// */
+// operation transfer(from_username: text, from_password: text, to_username: text, amount: integer) {
+//     // Authenticate the sender.
+//     authenticate_or_revert(from_username, from_password);
 
-    // Increase the receiver's balance.
-    var receiver_balance = balance @ ? { .username == to_username } ( .amount );
-    if (receiver_balance == null) {
-        create balance(username = to_username, amount = amount);
-    } else {
-        update balance @ { .username == to_username } ( .amount = receiver_balance + amount );
-    }
+//     // Ensure the amount to transfer is greater than 0.
+//     require(amount > 0, "Amount should be greater than 0");
 
-    // Record the transaction.
-    var tx_id = token_transfer @ ? { } ( @sort_desc .tx_id ) limit 1;
-    if (tx_id == null) {
-        tx_id = 0;
-    } else {
-        tx_id++;
-    }
-    create token_transfer(tx_id = tx_id, from_username = from_username, to_username = to_username, amount = amount, timestamp = op_context.last_block_time);
-}
+//     // Ensure the receiver exists
+//     require(user @ ? { .username == to_username } != null, "Receiver doesn't exist");
 
-/*
-Function to authenticate the admin.
-Params:
-- admin_password: text - Password of the admin.
-*/
-function authenticate_admin(admin_password: text): boolean {
-    require(hash_function(admin_password) == token_admin.password, "Invalid admin password");
-    return true;
-}
+//     // Check the sender's balance.
+//     var sender_balance = balance @ { .username == from_username } ( .amount );
+//     require(sender_balance >= amount, "Insufficient balance");
+
+//     // Deduct the amount from the sender's balance.
+//     update balance @ { .username == from_username } ( .amount = sender_balance - amount );
+
+//     // Increase the receiver's balance.
+//     var receiver_balance = balance @ ? { .username == to_username } ( .amount );
+//     if (receiver_balance == null) {
+//         create balance(username = to_username, amount = amount);
+//     } else {
+//         update balance @ { .username == to_username } ( .amount = receiver_balance + amount );
+//     }
+
+//     // Record the transaction.
+//     var tx_id = token_transfer @ ? { } ( @sort_desc .tx_id ) limit 1;
+//     if (tx_id == null) {
+//         tx_id = 0;
+//     } else {
+//         tx_id++;
+//     }
+//     create token_transfer(tx_id = tx_id, from_username = from_username, to_username = to_username, amount = amount, timestamp = op_context.last_block_time);
+// }
+
+// /*
+// Function to authenticate the admin.
+// Params:
+// - admin_password: text - Password of the admin.
+// */
+// function authenticate_admin(admin_password: text): boolean {
+//     require(hash_function(admin_password) == token_admin.password, "Invalid admin password");
+//     return true;
+// }

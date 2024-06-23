@@ -1,61 +1,107 @@
 /*
-Entity definition for a user.
-The 'username' field serves as the unique identifier (primary key).
-The 'password_hash' field stores the hashed password for authentication purposes.
+Entity definition for a registered user.
+The 'pubkey' field serves as the unique identifier (primary key).
 */
-entity user {
-    key username: text;
-    password_hash: byte_array;
+entity registered_user {
+    key pubkey: byte_array;
 }
 
 /*
-Function to hash a password.
-This function takes a plain text password, converts it to bytes, and then returns the SHA-256 hash of the byte array.
+Operation to register a new user.
+This operation uses the public key from the transaction signers.
 */
-function hash_function(password: text): byte_array {
-    return password.to_bytes().sha256();
+operation register_user() {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
+
+    // Register the user with the public key.
+    create registered_user(pubkey = pubkey);
 }
 
 /*
-Operation to create a new user.
-This operation takes a username and a plain text password, hashes the password using 'hash_function',
-and then creates a new user entity with the username and the hashed password.
+Entity representing a Non-Fungible Token (NFT).
 */
-operation create_user(username: text, password: text) {
-    // Cannot create a user with the same name as the token admin.
-    require(username != token_admin.name, "Username is reserved");
+entity nft {
+    key nft_id: integer;  // Unique identifier for the NFT.
+    description: text;    // Description of the NFT.
+    mutable owner: byte_array;  // Owner of the NFT, can be changed.
+    collection_id: integer;  // Identifier of the collection the NFT belongs to.
+    created: timestamp;   // Timestamp of when the NFT was created.
 
-    create user(username = username, password_hash = hash_function(password));
+    index owner;  // Index to query NFTs by owner.
+    index collection_id;  // Index to query NFTs by collection ID.
 }
 
 /*
-Function to authenticate a user or revert if authentication fails.
-This function takes a username and a plain text password, and performs the following steps:
-1. Retrieves the stored password hash for the given username.
-2. Checks if the user exists; if not, it reverts with an error message "User not found".
-3. Compares the stored password hash with the hash of the provided password.
-4. If the hashes match, authentication is successful.
-5. If the hashes do not match, it reverts with an error message "Invalid password".
-
-Note: A more concise implementation is possible by querying both the user and the password hash in one line:
-val user_record = user @ { .username == username and .password_hash == hash_function(password) };
-This approach fails immediately if the user isn't found or the password is incorrect, but does not provide specific feedback 
-on whether the failure was due to a non-existent user or an incorrect password. 
-
-The use of "?" allows for null values without reverting, providing a clearer feedback mechanism.
+Entity representing a collection of NFTs.
 */
-function authenticate_or_revert(username: text, password: text) {
-    // Retrieve the stored password hash for the given username, allowing for the possibility that the user does not exist.
-    val nullable_password_hash = user @ ? { .username == username } ( .password_hash );
+entity nft_collection {
+    key collection_id: integer;  // Unique identifier for the collection.
+    description: text;    // Description of the collection.
+    mutable owner: byte_array;  // Owner of the collection, can be changed.
+    created: timestamp;   // Timestamp of when the collection was created.
 
-    // Check if the user exists; if not, revert with an error message.
-    require(nullable_password_hash != null, "User not found");
+    index owner;  // Index to query collections by owner.
+}
 
-    // Extract the password hash from the nullable value, ensuring it is not null.
-    val password_hash = require(nullable_password_hash);
+/*
+Operation to mint a new NFT.
+Params:
+- description: text - Description of the NFT.
+- collection_id: integer - Identifier of the collection the NFT belongs to (default is -1, meaning no collection).
+*/
+operation mint_nft(description: text, collection_id: integer = -1) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-    // Compare the stored password hash with the hash of the provided password.
-    require(password_hash == hash_function(password), "Invalid password");
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-    // If authentication is successful, the function completes without error.
+    // Determine the next valid NFT ID.
+    var nft_id = nft @ ? { } ( @sort_desc .nft_id ) limit 1;
+    if (nft_id == null) {
+        nft_id = -1;
+    }
+    nft_id++;
+
+    // If a collection ID is provided, validate it.
+    if (collection_id >= 0) {
+        // Ensure the collection ID is valid.
+        require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Bad collection id!");
+
+        // Ensure the user is the owner of the collection.
+        require(nft_collection @ ? { .collection_id == collection_id and .owner == pubkey } ( .collection_id ) != null, "Not collection owner!");
+    }
+
+    // Mint the NFT.
+    create nft(nft_id = nft_id, description = description, owner = pubkey, collection_id = collection_id, created = op_context.last_block_time);
+}
+
+/*
+Operation to create a new NFT collection.
+Params:
+- description: text - Description of the collection.
+*/
+operation create_collection(description: text) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
+
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
+
+    // Determine the next valid collection ID.
+    var collection_id = nft_collection @ ? { } ( @sort_desc .collection_id ) limit 1;
+    if (collection_id == null) {
+        collection_id = -1;
+    }
+    collection_id++;
+
+    // Create the collection.
+    create nft_collection(collection_id = collection_id, description = description, owner = pubkey, created = op_context.last_block_time);
 }

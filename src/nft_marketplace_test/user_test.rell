@@ -1,67 +1,68 @@
-// Unit test module for user-related functionalities.
 @test module;
 
 import nft_marketplace.*;
 
-// Test if users do not exist initially
+// Test if users do not exist initially using predefined test keys
 function test_user_does_not_exist_initially() {
     // Check if users do not exist initially.
-    assert_fails(authenticate_or_revert("Alice", "alicePassword", *));
-    assert_fails(authenticate_or_revert("Bob", "bobPassword", *));
+    assert_equals((registered_user @* {} (.pubkey)).size(), 0);
 }
 
-// Test user creation
-function test_create_users() {
-    // Create users for Alice and Bob.
+// Test user registration using predefined test keys
+function test_register_users() {
+    // Register users for Alice and Bob.
     rell.test.tx()
-        .op(create_user("Alice", "alicePassword"))
-        .op(create_user("Bob", "bobPassword"))
-        .run();
-}
-
-// Test user authentication
-function test_user_authentication() {
-    // Create users for Alice and Bob first
-    rell.test.tx()
-        .op(create_user("Alice", "alicePassword"))
-        .op(create_user("Bob", "bobPassword"))
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
         .run();
 
-    // Check if the users were created and can be authenticated.
-    // The authenticate_or_revert function is expected to succeed without errors.
-    authenticate_or_revert("Alice", "alicePassword");
-    authenticate_or_revert("Bob", "bobPassword");
-}
-
-// Test that incorrect credentials fail authentication
-function test_incorrect_credentials_fail_authentication() {
-    // Create users for Alice and Bob first
     rell.test.tx()
-        .op(create_user("Alice", "alicePassword"))
-        .op(create_user("Bob", "bobPassword"))
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
         .run();
 
-    // Check that incorrect credentials fail authentication.
-    assert_fails(authenticate_or_revert("Alice", "bobPassword", *));
-    assert_fails(authenticate_or_revert("Bob", "alicePassword", *));
+    // Check if users are registered.
+    assert_equals((registered_user @* {} (.pubkey)).size(), 2);
 }
 
-// Test Duplicate User Registration
+// Test registered user check using predefined test keys
+function test_check_registered_user() {
+    // Register users for Alice and Bob.
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
+
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
+
+    // Check if Alice is registered.
+    assert_equals((registered_user @ { .pubkey == rell.test.pubkeys.alice } (.pubkey)),  rell.test.keypairs.alice.pub);
+
+    // Check if Bob is registered.
+    assert_equals((registered_user @ { .pubkey == rell.test.pubkeys.bob } (.pubkey)), rell.test.keypairs.bob.pub);
+}
+
+// Test Duplicate User Registration using predefined test keys
 function test_duplicate_user_registration() {
-    // Create a user with the username 'Charlie'.
+    // Register a user for Charlie.
     rell.test.tx()
-        .op(create_user("Charlie", "charliePassword"))
+        .op(register_user())
+        .sign(rell.test.keypairs.charlie)
         .run();
 
-    // Attempt to create another user with the same username 'Charlie'.
-    // This should fail as usernames must be unique.
+    // Attempt to register another user with the same public key of Charlie.
+    // This should fail as public keys must be unique.
     assert_fails(rell.test.tx()
-        .op(create_user("Charlie", "anotherPassword"))
+        .op(register_user())
+        .sign(rell.test.keypairs.charlie)
         .run(*));
 }
 
-// Test authentication for a non-existing user
-function test_authenticate_non_existing_user() {
-    // Attempt to authenticate a non-existing user
-    assert_fails(authenticate_or_revert("NonExistentUser", "somePassword", *));
+// Test registered user check for a non-existing user using predefined test keys
+function test_check_non_existing_user() {
+    // Attempt to check registration for Trudy who is not registered.
+    assert_null((registered_user @ ? { .pubkey == rell.test.pubkeys.trudy } (.pubkey)));
 }
