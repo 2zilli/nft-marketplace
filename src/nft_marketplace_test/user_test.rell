@@ -1,4 +1,4 @@
-// Test module using the scope of blockchain nft-marketplace.
+// Unit test module for user-related functionalities.
 @test module;
 
 import nft_marketplace.*;
@@ -28,8 +28,9 @@ function test_user_authentication() {
         .run();
 
     // Check if the users were created and can be authenticated.
-    assert_true(authenticate_or_revert("Alice", "alicePassword"));
-    assert_true(authenticate_or_revert("Bob", "bobPassword"));
+    // The authenticate_or_revert function is expected to succeed without errors.
+    authenticate_or_revert("Alice", "alicePassword");
+    authenticate_or_revert("Bob", "bobPassword");
 }
 
 // Test that incorrect credentials fail authentication
@@ -57,4 +58,10 @@ function test_duplicate_user_registration() {
     assert_fails(rell.test.tx()
         .op(create_user("Charlie", "anotherPassword"))
         .run(*));
+}
+
+// Test authentication for a non-existing user
+function test_authenticate_non_existing_user() {
+    // Attempt to authenticate a non-existing user
+    assert_fails(authenticate_or_revert("NonExistentUser", "somePassword", *));
 }
