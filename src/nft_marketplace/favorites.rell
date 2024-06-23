@@ -1,0 +1,57 @@
+entity favorite_nft {
+    key username: text;
+    key nft_id: integer;
+    
+    index username;
+    index nft_id;
+}
+
+entity favorite_collection {
+    key username: text;
+    key collection_id: integer;
+
+    index username;
+    index collection_id;
+}
+
+// Operation to add an NFT to favorites
+operation add_nft_to_favorites(username: text, password: text, nft_id: integer) {
+    authenticate_or_revert(username, password); // this function reverts if authentication fails
+
+    // Check if the NFT exists
+    require(nft @ ? { .nft_id == nft_id } ( .nft_id ) != null, "NFT not found!");
+
+    // Here, the fee for adding to favorites would be deducted from the user's balance.
+
+    // Add NFT to favorites
+    create favorite_nft(username = username, nft_id = nft_id);
+}
+
+// Operation to remove an NFT from favorites
+operation remove_nft_from_favorites(username: text, password: text, nft_id: integer) {
+    authenticate_or_revert(username, password); // this function reverts if authentication fails
+
+    // Remove NFT from favorites
+    delete favorite_nft @ { .username == username, .nft_id == nft_id };
+}
+
+// Operation to add a collection to favorites
+operation add_collection_to_favorites(username: text, password: text, collection_id: integer) {
+    authenticate_or_revert(username, password); // this function reverts if authentication fails
+
+    // Check if the collection exists
+    require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Collection not found!");
+
+    // Here, the fee for adding to favorites would be deducted from the user's balance.
+
+    // Add collection to favorites
+    create favorite_collection(username = username, collection_id = collection_id);
+}
+
+// Operation to remove a collection from favorites
+operation remove_collection_from_favorites(username: text, password: text, collection_id: integer) {
+    authenticate_or_revert(username, password); // this function reverts if authentication fails
+
+    // Remove collection from favorites
+    delete favorite_collection @ { .username == username, .collection_id == collection_id };
+}

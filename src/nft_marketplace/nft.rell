@@ -1,61 +1,83 @@
-
-
+/*
+Entity representing a Non-Fungible Token (NFT).
+*/
 entity nft {
-    key nft_id: integer;
-    description: text;
-    mutable owner: text;
-    collection_id: integer;
-    created: timestamp;
-    
-    index owner;
-    index collection_id;
+    key nft_id: integer;  // Unique identifier for the NFT.
+    description: text;    // Description of the NFT.
+    mutable owner: text;  // Owner of the NFT, can be changed.
+    collection_id: integer;  // Identifier of the collection the NFT belongs to.
+    created: timestamp;   // Timestamp of when the NFT was created.
+
+    index owner;  // Index to query NFTs by owner.
+    index collection_id;  // Index to query NFTs by collection ID.
 }
 
+/*
+Entity representing a collection of NFTs.
+*/
 entity nft_collection {
-    key collection_id: integer;
-    description: text;
-    mutable owner: text;
-    created: timestamp;
+    key collection_id: integer;  // Unique identifier for the collection.
+    description: text;    // Description of the collection.
+    mutable owner: text;  // Owner of the collection, can be changed.
+    created: timestamp;   // Timestamp of when the collection was created.
 
-    index owner;
+    index owner;  // Index to query collections by owner.
 }
 
+/*
+Operation to mint a new NFT.
+Params:
+- username: text - Username of the user minting the NFT.
+- password: text - Password of the user minting the NFT.
+- description: text - Description of the NFT.
+- collection_id: integer - Identifier of the collection the NFT belongs to (default is -1, meaning no collection).
+*/
 operation mint_nft(username: text, password: text, description: text, collection_id: integer = -1) {
-    authenticate_or_revert(username, password); // this function reverts if authentication fails
+    // Authenticate the user. This function reverts if authentication fails.
+    authenticate_or_revert(username, password);
 
-    // TODO: Decide if the user should pay something here
-
-    // Next valid nft id
+    // Determine the next valid NFT ID.
     var nft_id = nft @ ? { } ( @sort_desc .nft_id ) limit 1;
     if (nft_id == null) {
         nft_id = -1;
     }
     nft_id++;
 
+    // If a collection ID is provided, validate it.
     if (collection_id >= 0) {
-        // Valid collection_id?
+        // Ensure the collection ID is valid.
         require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Bad collection id!");
 
-        // Is user collection owner?
+        // Ensure the user is the owner of the collection.
         require(nft_collection @ ? { .collection_id == collection_id and .owner == username } ( .collection_id ) != null, "Not collection owner!");
     }
 
-    // Mint the NFT
+    // Here, the fee for minting an NFT would be deducted from the user's balance.
+
+    // Mint the NFT.
     create nft(nft_id = nft_id, description = description, owner = username, collection_id = collection_id, created = op_context.last_block_time);
 }
 
+/*
+Operation to create a new NFT collection.
+Params:
+- username: text - Username of the user creating the collection.
+- password: text - Password of the user creating the collection.
+- description: text - Description of the collection.
+*/
 operation create_collection(username: text, password: text, description: text) {
+    // Authenticate the user. This function reverts if authentication fails.
     authenticate_or_revert(username, password);
 
-    // TODO: Decide is the user should pay something here
-
-    // Next valid collection id
+    // Determine the next valid collection ID.
     var collection_id = nft_collection @ ? { } ( @sort_desc .collection_id ) limit 1;
     if (collection_id == null) {
         collection_id = -1;
     }
     collection_id++;
 
-    // Create the collection
+    // Here, the fee for creating a collection would be deducted from the user's balance.
+
+    // Create the collection.
     create nft_collection(collection_id = collection_id, description = description, owner = username, created = op_context.last_block_time);
 }
