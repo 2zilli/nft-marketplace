@@ -1,57 +1,103 @@
-// entity favorite_nft {
-//     key username: text;
-//     key nft_id: integer;
-    
-//     index username;
-//     index nft_id;
-// }
+/*
+Entity representing a favorite NFT.
+*/
+entity favorite_nft {
+    key pubkey: byte_array;  // Public key of the user.
+    key nft_id: integer;  // Identifier of the NFT.
 
-// entity favorite_collection {
-//     key username: text;
-//     key collection_id: integer;
+    index pubkey;  // Index to query favorite NFTs by user.
+    index nft_id;  // Index to query favorite NFTs by NFT ID.
+}
 
-//     index username;
-//     index collection_id;
-// }
+/*
+Entity representing a favorite collection.
+*/
+entity favorite_collection {
+    key pubkey: byte_array;  // Public key of the user.
+    key collection_id: integer;  // Identifier of the collection.
 
-// // Operation to add an NFT to favorites
-// operation add_nft_to_favorites(username: text, password: text, nft_id: integer) {
-//     authenticate_or_revert(username, password); // this function reverts if authentication fails
+    index pubkey;  // Index to query favorite collections by user.
+    index collection_id;  // Index to query favorite collections by collection ID.
+}
 
-//     // Check if the NFT exists
-//     require(nft @ ? { .nft_id == nft_id } ( .nft_id ) != null, "NFT not found!");
+/*
+Operation to add an NFT to favorites.
+Params:
+- nft_id: integer - Identifier of the NFT to be added to favorites.
+*/
+operation add_nft_to_favorites(nft_id: integer) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-//     // Here, the fee for adding to favorites would be deducted from the user's balance.
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-//     // Add NFT to favorites
-//     create favorite_nft(username = username, nft_id = nft_id);
-// }
+    // Check if the NFT exists.
+    require(nft @ ? { .nft_id == nft_id } ( .nft_id ) != null, "NFT not found!");
 
-// // Operation to remove an NFT from favorites
-// operation remove_nft_from_favorites(username: text, password: text, nft_id: integer) {
-//     authenticate_or_revert(username, password); // this function reverts if authentication fails
+    // Here, the fee for adding to favorites would be deducted from the user's balance.
 
-//     // Remove NFT from favorites
-//     delete favorite_nft @ { .username == username, .nft_id == nft_id };
-// }
+    // Add NFT to favorites.
+    create favorite_nft(pubkey = pubkey, nft_id = nft_id);
+}
 
-// // Operation to add a collection to favorites
-// operation add_collection_to_favorites(username: text, password: text, collection_id: integer) {
-//     authenticate_or_revert(username, password); // this function reverts if authentication fails
+/*
+Operation to remove an NFT from favorites.
+Params:
+- nft_id: integer - Identifier of the NFT to be removed from favorites.
+*/
+operation remove_nft_from_favorites(nft_id: integer) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-//     // Check if the collection exists
-//     require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Collection not found!");
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-//     // Here, the fee for adding to favorites would be deducted from the user's balance.
+    // Remove NFT from favorites.
+    delete favorite_nft @ { .pubkey == pubkey, .nft_id == nft_id };
+}
 
-//     // Add collection to favorites
-//     create favorite_collection(username = username, collection_id = collection_id);
-// }
+/*
+Operation to add a collection to favorites.
+Params:
+- collection_id: integer - Identifier of the collection to be added to favorites.
+*/
+operation add_collection_to_favorites(collection_id: integer) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-// // Operation to remove a collection from favorites
-// operation remove_collection_from_favorites(username: text, password: text, collection_id: integer) {
-//     authenticate_or_revert(username, password); // this function reverts if authentication fails
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-//     // Remove collection from favorites
-//     delete favorite_collection @ { .username == username, .collection_id == collection_id };
-// }
+    // Check if the collection exists.
+    require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Collection not found!");
+
+    // Here, the fee for adding to favorites would be deducted from the user's balance.
+
+    // Add collection to favorites.
+    create favorite_collection(pubkey = pubkey, collection_id = collection_id);
+}
+
+/*
+Operation to remove a collection from favorites.
+Params:
+- collection_id: integer - Identifier of the collection to be removed from favorites.
+*/
+operation remove_collection_from_favorites(collection_id: integer) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
+
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
+
+    // Remove collection from favorites.
+    delete favorite_collection @ { .pubkey == pubkey, .collection_id == collection_id };
+}

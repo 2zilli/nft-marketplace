@@ -1,139 +1,106 @@
-// // Unit test module for token-related functionalities.
-// @test module;
+// Unit test module for token-related functionalities.
+@test module;
 
-// import nft_marketplace.*;
+import nft_marketplace.*;
 
-// // Test authenticating the admin
-// function test_authenticate_admin() {
-//     // Authenticate the admin with the correct password
-//     assert_true(authenticate_admin("adminPassword"));
-// }
+// Test minting tokens
+function test_mint_tokens() {
+    // Register a user
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-// // Test minting tokens
-// function test_mint_tokens() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .run();
+    // Mint tokens for Alice
+    rell.test.tx()
+        .op(mint_tokens(rell.test.pubkeys.alice, 100))
+        .sign(rell.test.keypairs.trudy) // Trudy is the admin
+        .run();
 
-//     // Mint tokens for Alice
-//     rell.test.tx()
-//         .op(mint_tokens("adminPassword", "Alice", 100))
-//         .run();
+    // Check Alice's balance
+    val alice_balance = balance @ { .pubkey == rell.test.pubkeys.alice } ( .amount );
+    assert_equals(alice_balance, 100);
 
-//     // Check Alice's balance
-//     val alice_balance = balance @ { .username == "Alice" } ( .amount );
-//     assert_equals(alice_balance, 100);
+    // Check the token transfer record
+    val mint_transfer = token_transfer @ { .to_pubkey == rell.test.pubkeys.alice } ( .amount );
+    assert_equals(mint_transfer, 100);
+}
 
-//     // Check the token transfer record
-//     val mint_transfer = token_transfer @ { .to_username == "Alice" } ( .amount );
-//     assert_equals(mint_transfer, 100);
-// }
+// Test transferring tokens
+function test_transfer_tokens() {
+    // Register users
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-// // Test transferring tokens
-// function test_transfer_tokens() {
-//     // Create users
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Bob", "bobPassword"))
-//         .run();
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Mint tokens for Alice
-//     rell.test.tx()
-//         .op(mint_tokens("adminPassword", "Alice", 100))
-//         .run();
+    // Mint tokens for Alice
+    rell.test.tx()
+        .op(mint_tokens(rell.test.pubkeys.alice, 100))
+        .sign(rell.test.keypairs.trudy) // Trudy is the admin
+        .run();
 
-//     // Transfer tokens from Alice to Bob
-//     rell.test.tx()
-//         .op(transfer("Alice", "alicePassword", "Bob", 50))
-//         .run();
+    // Transfer tokens from Alice to Bob
+    rell.test.tx()
+        .op(transfer(rell.test.pubkeys.bob, 50))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Check Alice's balance
-//     val alice_balance = balance @ { .username == "Alice" } ( .amount );
-//     assert_equals(alice_balance, 50);
+    // Check Alice's balance
+    val alice_balance = balance @ { .pubkey == rell.test.pubkeys.alice } ( .amount );
+    assert_equals(alice_balance, 50);
 
-//     // Check Bob's balance
-//     val bob_balance = balance @ { .username == "Bob" } ( .amount );
-//     assert_equals(bob_balance, 50);
+    // Check Bob's balance
+    val bob_balance = balance @ { .pubkey == rell.test.pubkeys.bob } ( .amount );
+    assert_equals(bob_balance, 50);
 
-//     // Check the token transfer record
-//     val transfer_record = token_transfer @ { .from_username == "Alice" and .to_username == "Bob" } ( .amount );
-//     assert_equals(transfer_record, 50);
-// }
+    // Check the token transfer record
+    val transfer_record = token_transfer @ { .from_pubkey == rell.test.pubkeys.alice and .to_pubkey == rell.test.pubkeys.bob } ( .amount );
+    assert_equals(transfer_record, 50);
+}
 
-// // Test insufficient balance transfer
-// function test_insufficient_balance_transfer() {
-//     // Create users
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Bob", "bobPassword"))
-//         .run();
+// Test insufficient balance transfer
+function test_insufficient_balance_transfer() {
+    // Register users
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Mint tokens for Alice
-//     rell.test.tx()
-//         .op(mint_tokens("adminPassword", "Alice", 100))
-//         .run();
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Attempt to transfer more tokens than Alice has
-//     assert_fails(rell.test.tx()
-//         .op(transfer("Alice", "alicePassword", "Bob", 150))
-//         .run(*));
-// }
+    // Mint tokens for Alice
+    rell.test.tx()
+        .op(mint_tokens(rell.test.pubkeys.alice, 100))
+        .sign(rell.test.keypairs.trudy) // Trudy is the admin
+        .run();
 
-// // Test incorrect admin password for minting
-// function test_incorrect_admin_password_for_minting() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .run();
+    // Attempt to transfer more tokens than Alice has
+    assert_fails(rell.test.tx()
+        .op(transfer(rell.test.pubkeys.bob, 150))
+        .sign(rell.test.keypairs.alice)
+        .run(*));
+}
 
-//     // Attempt to mint tokens with an incorrect admin password
-//     assert_fails(rell.test.tx()
-//         .op(mint_tokens("wrongPassword", "Alice", 100))
-//         .run(*));
-// }
+// Test unauthorized minting attempt
+function test_unauthorized_minting() {
+    // Register a user
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-// // Test incorrect user password for transfer
-// function test_incorrect_user_password_for_transfer() {
-//     // Create users
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Bob", "bobPassword"))
-//         .run();
-
-//     // Mint tokens for Alice
-//     rell.test.tx()
-//         .op(mint_tokens("adminPassword", "Alice", 100))
-//         .run();
-
-//     // Attempt to transfer tokens from Alice to Bob with an incorrect password
-//     assert_fails(rell.test.tx()
-//         .op(transfer("Alice", "wrongPassword", "Bob", 50))
-//         .run(*));
-// }
-
-// // Test non-existing user for transfer
-// function test_transfer_to_non_existing_user() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .run();
-
-//     // Mint tokens for Alice
-//     rell.test.tx()
-//         .op(mint_tokens("adminPassword", "Alice", 100))
-//         .run();
-
-//     // Attempt to transfer tokens to a non-existing user
-//     assert_fails(rell.test.tx()
-//         .op(transfer("Alice", "alicePassword", "NonExistentUser", 50))
-//         .run(*));
-// }
-
-// // Test minting tokens to non-existing user
-// function test_mint_tokens_to_non_existing_user() {
-//     // Attempt to mint tokens to a non-existing user
-//     assert_fails(rell.test.tx()
-//         .op(mint_tokens("adminPassword", "NonExistentUser", 100))
-//         .run(*));
-// }
+    // Attempt to mint tokens without admin rights
+    assert_fails(rell.test.tx()
+        .op(mint_tokens(rell.test.pubkeys.alice, 100))
+        .sign(rell.test.keypairs.bob)
+        .run(*));
+}

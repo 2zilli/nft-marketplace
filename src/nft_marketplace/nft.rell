@@ -1,83 +1,85 @@
-// /*
-// Entity representing a Non-Fungible Token (NFT).
-// */
-// entity nft {
-//     key nft_id: integer;  // Unique identifier for the NFT.
-//     description: text;    // Description of the NFT.
-//     mutable owner: text;  // Owner of the NFT, can be changed.
-//     collection_id: integer;  // Identifier of the collection the NFT belongs to.
-//     created: timestamp;   // Timestamp of when the NFT was created.
+/*
+Entity representing a Non-Fungible Token (NFT).
+*/
+entity nft {
+    key nft_id: integer;  // Unique identifier for the NFT.
+    description: text;    // Description of the NFT.
+    mutable owner: byte_array;  // Owner of the NFT, can be changed.
+    collection_id: integer;  // Identifier of the collection the NFT belongs to.
+    created: timestamp;   // Timestamp of when the NFT was created.
 
-//     index owner;  // Index to query NFTs by owner.
-//     index collection_id;  // Index to query NFTs by collection ID.
-// }
+    index owner;  // Index to query NFTs by owner.
+    index collection_id;  // Index to query NFTs by collection ID.
+}
 
-// /*
-// Entity representing a collection of NFTs.
-// */
-// entity nft_collection {
-//     key collection_id: integer;  // Unique identifier for the collection.
-//     description: text;    // Description of the collection.
-//     mutable owner: text;  // Owner of the collection, can be changed.
-//     created: timestamp;   // Timestamp of when the collection was created.
+/*
+Entity representing a collection of NFTs.
+*/
+entity nft_collection {
+    key collection_id: integer;  // Unique identifier for the collection.
+    description: text;    // Description of the collection.
+    mutable owner: byte_array;  // Owner of the collection, can be changed.
+    created: timestamp;   // Timestamp of when the collection was created.
 
-//     index owner;  // Index to query collections by owner.
-// }
+    index owner;  // Index to query collections by owner.
+}
 
-// /*
-// Operation to mint a new NFT.
-// Params:
-// - username: text - Username of the user minting the NFT.
-// - password: text - Password of the user minting the NFT.
-// - description: text - Description of the NFT.
-// - collection_id: integer - Identifier of the collection the NFT belongs to (default is -1, meaning no collection).
-// */
-// operation mint_nft(username: text, password: text, description: text, collection_id: integer = -1) {
-//     // Authenticate the user. This function reverts if authentication fails.
-//     authenticate_or_revert(username, password);
+/*
+Operation to mint a new NFT.
+Params:
+- description: text - Description of the NFT.
+- collection_id: integer - Identifier of the collection the NFT belongs to (default is -1, meaning no collection).
+*/
+operation mint_nft(description: text, collection_id: integer = -1) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-//     // Determine the next valid NFT ID.
-//     var nft_id = nft @ ? { } ( @sort_desc .nft_id ) limit 1;
-//     if (nft_id == null) {
-//         nft_id = -1;
-//     }
-//     nft_id++;
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-//     // If a collection ID is provided, validate it.
-//     if (collection_id >= 0) {
-//         // Ensure the collection ID is valid.
-//         require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Bad collection id!");
+    // Determine the next valid NFT ID.
+    var nft_id = nft @ ? { } ( @sort_desc .nft_id ) limit 1;
+    if (nft_id == null) {
+        nft_id = -1;
+    }
+    nft_id++;
 
-//         // Ensure the user is the owner of the collection.
-//         require(nft_collection @ ? { .collection_id == collection_id and .owner == username } ( .collection_id ) != null, "Not collection owner!");
-//     }
+    // If a collection ID is provided, validate it.
+    if (collection_id >= 0) {
+        // Ensure the collection ID is valid.
+        require(nft_collection @ ? { .collection_id == collection_id } ( .collection_id ) != null, "Bad collection id!");
 
-//     // Here, the fee for minting an NFT would be deducted from the user's balance.
+        // Ensure the user is the owner of the collection.
+        require(nft_collection @ ? { .collection_id == collection_id and .owner == pubkey } ( .collection_id ) != null, "Not collection owner!");
+    }
 
-//     // Mint the NFT.
-//     create nft(nft_id = nft_id, description = description, owner = username, collection_id = collection_id, created = op_context.last_block_time);
-// }
+    // Mint the NFT.
+    create nft(nft_id = nft_id, description = description, owner = pubkey, collection_id = collection_id, created = op_context.last_block_time);
+}
 
-// /*
-// Operation to create a new NFT collection.
-// Params:
-// - username: text - Username of the user creating the collection.
-// - password: text - Password of the user creating the collection.
-// - description: text - Description of the collection.
-// */
-// operation create_collection(username: text, password: text, description: text) {
-//     // Authenticate the user. This function reverts if authentication fails.
-//     authenticate_or_revert(username, password);
+/*
+Operation to create a new NFT collection.
+Params:
+- description: text - Description of the collection.
+*/
+operation create_collection(description: text) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-//     // Determine the next valid collection ID.
-//     var collection_id = nft_collection @ ? { } ( @sort_desc .collection_id ) limit 1;
-//     if (collection_id == null) {
-//         collection_id = -1;
-//     }
-//     collection_id++;
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-//     // Here, the fee for creating a collection would be deducted from the user's balance.
+    // Determine the next valid collection ID.
+    var collection_id = nft_collection @ ? { } ( @sort_desc .collection_id ) limit 1;
+    if (collection_id == null) {
+        collection_id = -1;
+    }
+    collection_id++;
 
-//     // Create the collection.
-//     create nft_collection(collection_id = collection_id, description = description, owner = username, created = op_context.last_block_time);
-// }
+    // Create the collection.
+    create nft_collection(collection_id = collection_id, description = description, owner = pubkey, created = op_context.last_block_time);
+}

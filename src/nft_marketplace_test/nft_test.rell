@@ -1,100 +1,105 @@
-// // Unit test module for NFT-related functionalities.
-// @test module;
+@test module;
 
-// import nft_marketplace.*;
+import nft_marketplace.*;
 
-// // Test creating a collection
-// function test_create_collection() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Grace", "gracePassword"))
-//         .run();
+// Test creating an NFT collection
+function test_create_nft_collection() {
+    // Register a user
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Create a collection
-//     rell.test.tx()
-//         .op(create_collection("Grace", "gracePassword", "Grace's NFT Collection"))
-//         .run();
+    // Create an NFT collection
+    rell.test.tx()
+        .op(create_collection("Alice's Art Collection"))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Check if the collection was created
-//     val created_collection = nft_collection @ { .owner == "Grace" } ( .collection_id, .description, .owner ); // Only 1 hit or fail
-//     assert_equals(created_collection.description, "Grace's NFT Collection");
-// }
+    // Check if the collection was created
+    val collection = nft_collection @ { .owner == rell.test.pubkeys.alice } ( .collection_id, .description );
+    assert_equals(collection.description, "Alice's Art Collection");
 
-// // Test minting an NFT without a collection
-// function test_mint_nft_without_collection() {
-//     // Create a user to own the NFT
-//     rell.test.tx()
-//         .op(create_user("David", "davidPassword"))
-//         .run();
+    print("TRUDY: " + rell.test.pubkeys.trudy);
+}
 
-//     // Mint an NFT
-//     rell.test.tx()
-//         .op(mint_nft("David", "davidPassword", "A unique NFT", -1))
-//         .run();
+// Test minting an NFT without a collection
+function test_mint_nft_without_collection() {
+    // Register a user
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Check if the NFT was created
-//     val unique_nft = nft @ { .owner == "David" } ( .nft_id, .description, .owner, .collection_id ); // Only 1 hit or fail
-//     assert_equals(unique_nft.description, "A unique NFT");
-//     assert_equals(unique_nft.collection_id, -1);
-// }
+    // Mint an NFT
+    rell.test.tx()
+        .op(mint_nft("A unique NFT"))
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-// // Test creating a collection and minting an NFT in it
-// function test_create_collection_and_mint_nft() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Henry", "henryPassword"))
-//         .run();
+    // Check if the NFT was created
+    val nft_record = nft @ { .owner == rell.test.pubkeys.bob } ( .nft_id, .description, .owner, .collection_id );
+    assert_equals(nft_record.description, "A unique NFT");
+    assert_equals(nft_record.collection_id, -1); // -1 doesn't belong to any collection
+}
 
-//     // Create a collection
-//     rell.test.tx()
-//         .op(create_collection("Henry", "henryPassword", "Henry's Art Collection"))
-//         .run();
+// Test minting an NFT with a collection
+function test_mint_nft_with_collection() {
+    // Register a user and create a collection
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.charlie)
+        .run();
 
-//     // Get the collection_id of the created collection
-//     val collection_id = nft_collection @ { .owner == "Henry" } ( .collection_id );
+    rell.test.tx()
+        .op(create_collection("Charlie's Collection"))
+        .sign(rell.test.keypairs.charlie)
+        .run();
 
-//     // Mint an NFT in the collection
-//     rell.test.tx()
-//         .op(mint_nft("Henry", "henryPassword", "Henry's first NFT", collection_id))
-//         .run();
+    // Get the collection ID
+    val collection_id = nft_collection @ { .owner == rell.test.pubkeys.charlie } ( .collection_id );
 
-//     // Check if the NFT was created in the collection
-//     val collection_nft = nft @ { .owner == "Henry" } ( .nft_id, .description, .owner, .collection_id ); // Only 1 hit or fail
-//     assert_equals(collection_nft.description, "Henry's first NFT");
-//     assert_equals(collection_nft.collection_id, collection_id);
-// }
+    // Mint an NFT in the collection
+    rell.test.tx()
+        .op(mint_nft("An NFT in Charlie's collection", collection_id))
+        .sign(rell.test.keypairs.charlie)
+        .run();
 
-// // Test minting an NFT with a collection
-// function test_mint_nft_with_collection() {
-//     // Create a user and a collection
-//     rell.test.tx()
-//         .op(create_user("Eve", "evePassword"))
-//         .op(create_collection("Eve", "evePassword", "Eve's Art Collection"))
-//         .run();
+    // Check if the NFT was created in the collection
+    val nft_record = nft @ { .owner == rell.test.pubkeys.charlie } ( .nft_id, .description, .owner, .collection_id );
+    assert_equals(nft_record.description, "An NFT in Charlie's collection");
+    assert_equals(nft_record.collection_id, collection_id);
+}
 
-//     // Get the collection_id of the created collection
-//     val collection_id = nft_collection @ { .owner == "Eve" } ( .collection_id );
+// Test minting an NFT with an invalid collection ID
+function test_mint_nft_with_invalid_collection() {
+    // Register a user
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.dave)
+        .run();
 
-//     // Mint an NFT in the collection
-//     rell.test.tx()
-//         .op(mint_nft("Eve", "evePassword", "An NFT in a collection", collection_id))
-//         .run();
+    // Attempt to mint an NFT with an invalid collection ID
+    assert_fails(rell.test.tx()
+        .op(mint_nft("NFT with invalid collection ID", 999))
+        .sign(rell.test.keypairs.dave)
+        .run(*));
+}
 
-//     // Check if the NFT was created in the collection
-//     val collection_nft = nft @ { .owner == "Eve" } ( .nft_id, .description, .owner, .collection_id ); // Only 1 hit or fail
-//     assert_equals(collection_nft.description, "An NFT in a collection");
-//     assert_equals(collection_nft.collection_id, collection_id);
-// }
+// Test minting an NFT by an unregistered user
+function test_mint_nft_unregistered_user() {
+    // Attempt to mint an NFT by an unregistered user
+    assert_fails(rell.test.tx()
+        .op(mint_nft("NFT by unregistered user"))
+        .sign(rell.test.keypairs.eve)
+        .run(*));
+}
 
-// // Test minting an NFT with an invalid collection ID
-// function test_mint_nft_with_invalid_collection() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Frank", "frankPassword"))
-//         .run();
-
-//     // Attempt to mint an NFT with an invalid collection ID
-//     assert_fails(rell.test.tx()
-//         .op(mint_nft("Frank", "frankPassword", "NFT with bad collection ID", 999))
-//         .run(*));
-// }
+// Test creating an NFT collection by an unregistered user
+function test_create_collection_unregistered_user() {
+    // Attempt to create an NFT collection by an unregistered user
+    assert_fails(rell.test.tx()
+        .op(create_collection("Unregistered User's Collection"))
+        .sign(rell.test.keypairs.frank)
+        .run(*));
+}

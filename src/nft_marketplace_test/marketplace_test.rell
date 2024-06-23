@@ -1,144 +1,146 @@
-// // Unit test module for marketplace-related functionalities.
-// @test module;
+@test module;
 
-// import nft_marketplace.*;
+import nft_marketplace.*;
 
-// // Test listing an NFT for sale
-// function test_list_nft() {
-//     // Create a user and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(mint_nft("Alice", "alicePassword", "Alice's NFT", -1))
-//         .run();
+// Test listing an NFT for sale
+function test_list_nft_for_sale() {
+    // Register a user and mint an NFT
+    rell.test.tx()
+        .op(register_user())
+        .op(mint_nft("Alice's NFT"))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Get the NFT ID
-//     val alice_nft_id = nft @ { .owner == "Alice" } ( .nft_id );
+    // Get the NFT ID
+    val alice_nft_id = nft @ { .owner == rell.test.pubkeys.alice } ( .nft_id );
 
-//     // List the NFT for sale
-//     rell.test.tx()
-//         .op(list_nft("Alice", "alicePassword", alice_nft_id, 100))
-//         .run();
+    // List the NFT for sale
+    rell.test.tx()
+        .op(list_nft(alice_nft_id, 100))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Check if the NFT was listed
-//     val listing = marketplace_listing @ { .nft_id == alice_nft_id } ( .nft_id, .seller, .price );
-//     assert_equals(listing.seller, "Alice");
-//     assert_equals(listing.price, 100);
-// }
+    // Check if the NFT was listed
+    val listing = marketplace_listing @ { .nft_id == alice_nft_id } ( .nft_id, .price );
+    assert_equals(listing.nft_id, alice_nft_id);
+    assert_equals(listing.price, 100);
+}
 
-// // Test buying an NFT
-// function test_buy_nft() {
-//     // Create users and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Bob", "bobPassword"))
-//         .op(mint_nft("Alice", "alicePassword", "Alice's NFT", -1))
-//         .run();
+// Test buying an NFT
+function test_buy_nft() {
+    // Register users and mint an NFT
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Get the NFT ID
-//     val alice_nft_id = nft @ { .owner == "Alice" } ( .nft_id );
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // List the NFT for sale
-//     rell.test.tx()
-//         .op(list_nft("Alice", "alicePassword", alice_nft_id, 100))
-//         .run();
+    rell.test.tx()
+        .op(mint_nft("Alice's NFT"))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Mint tokens for Bob
-//     rell.test.tx()
-//         .op(mint_tokens("adminPassword", "Bob", 200))
-//         .run();
+    // Get the NFT ID
+    val alice_nft_id = nft @ { .owner == rell.test.pubkeys.alice } ( .nft_id );
 
-//     // Buy the NFT
-//     rell.test.tx()
-//         .op(buy_nft("Bob", "bobPassword", alice_nft_id))
-//         .run();
+    // List the NFT for sale
+    rell.test.tx()
+        .op(list_nft(alice_nft_id, 100))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Check if the ownership of the NFT was transferred
-//     val nft_owner = nft @ { .nft_id == alice_nft_id } ( .owner );
-//     assert_equals(nft_owner, "Bob");
+    // Mint tokens for Bob
+    rell.test.tx()
+        .op(mint_tokens(rell.test.pubkeys.bob, 200))
+        .sign(rell.test.keypairs.trudy)
+        .run();
 
-//     // Check if the balance was updated correctly
-//     val alice_balance = balance @ { .username == "Alice" } ( .amount );
-//     val bob_balance = balance @ { .username == "Bob" } ( .amount );
-//     assert_equals(alice_balance, 100); // Alice should have received 100 tokens
-//     assert_equals(bob_balance, 100); // Bob should have 100 tokens left after buying the NFT
+    // Buy the NFT
+    rell.test.tx()
+        .op(buy_nft(alice_nft_id))
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Check if the listing was removed
-//     val listing = marketplace_listing @ ? { .nft_id == alice_nft_id } ( .nft_id );
-//     assert_null(listing);
-// }
+    // Check if the NFT was transferred to Bob
+    val nft_owner = nft @ { .nft_id == alice_nft_id } ( .owner );
+    assert_equals(nft_owner, rell.test.pubkeys.bob);
 
-// // Test that an NFT cannot be bought with insufficient balance
-// function test_buy_nft_insufficient_balance() {
-//     // Create users and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Bob", "bobPassword"))
-//         .op(mint_nft("Alice", "alicePassword", "Alice's NFT", -1))
-//         .run();
+    // Check if the balances were updated
+    val bob_balance = balance @ { .pubkey == rell.test.pubkeys.bob } ( .amount );
+    assert_equals(bob_balance, 100);
 
-//     // Get the NFT ID
-//     val alice_nft_id = nft @ { .owner == "Alice" } ( .nft_id );
+    val alice_balance = balance @ { .pubkey == rell.test.pubkeys.alice } ( .amount );
+    assert_equals(alice_balance, 100);
+}
 
-//     // List the NFT for sale
-//     rell.test.tx()
-//         .op(list_nft("Alice", "alicePassword", alice_nft_id, 100))
-//         .run();
+// Test listing an NFT not owned by the user
+function test_list_nft_not_owned() {
+    // Register users and mint an NFT
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Attempt to buy the NFT with insufficient balance
-//     assert_fails(rell.test.tx()
-//         .op(buy_nft("Bob", "bobPassword", alice_nft_id))
-//         .run(*));
-// }
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-// // Test that a seller cannot buy their own NFT
-// function test_seller_cannot_buy_own_nft() {
-//     // Create a user and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(mint_nft("Alice", "alicePassword", "Alice's NFT", -1))
-//         .run();
+    rell.test.tx()
+        .op(mint_nft("Alice's NFT"))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Get the NFT ID
-//     val alice_nft_id = nft @ { .owner == "Alice" } ( .nft_id );
+    // Get the NFT ID
+    val alice_nft_id = nft @ { .owner == rell.test.pubkeys.alice } ( .nft_id );
 
-//     // List the NFT for sale
-//     rell.test.tx()
-//         .op(list_nft("Alice", "alicePassword", alice_nft_id, 100))
-//         .run();
+    // Attempt to list the NFT by Bob
+    assert_fails(rell.test.tx()
+        .op(list_nft(alice_nft_id, 100))
+        .sign(rell.test.keypairs.bob)
+        .run(*));
+}
 
-//     // Attempt to buy the NFT by the seller
-//     assert_fails(rell.test.tx()
-//         .op(buy_nft("Alice", "alicePassword", alice_nft_id))
-//         .run(*));
-// }
+// Test buying an NFT with insufficient balance
+function test_buy_nft_insufficient_balance() {
+    // Register users and mint an NFT
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-// // Test that a non-existing NFT cannot be listed
-// function test_list_non_existing_nft() {
-//     // Create a user
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .run();
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Attempt to list a non-existing NFT
-//     assert_fails(rell.test.tx()
-//         .op(list_nft("Alice", "alicePassword", 999, 100))
-//         .run(*));
-// }
+    rell.test.tx()
+        .op(mint_nft("Alice's NFT"))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-// // Test that a non-owner cannot list an NFT
-// function test_non_owner_cannot_list_nft() {
-//     // Create users and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Bob", "bobPassword"))
-//         .op(mint_nft("Alice", "alicePassword", "Alice's NFT", -1))
-//         .run();
+    // Get the NFT ID
+    val alice_nft_id = nft @ { .owner == rell.test.pubkeys.alice } ( .nft_id );
 
-//     // Get the NFT ID
-//     val alice_nft_id = nft @ { .owner == "Alice" } ( .nft_id );
+    // List the NFT for sale
+    rell.test.tx()
+        .op(list_nft(alice_nft_id, 100))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Attempt to list the NFT by a non-owner
-//     assert_fails(rell.test.tx()
-//         .op(list_nft("Bob", "bobPassword", alice_nft_id, 100))
-//         .run(*));
-// }
+    // Mint tokens for Bob
+    rell.test.tx()
+        .op(mint_tokens(rell.test.pubkeys.bob, 50))
+        .sign(rell.test.keypairs.trudy)
+        .run();
+
+    // Attempt to buy the NFT
+    assert_fails(rell.test.tx()
+        .op(buy_nft(alice_nft_id))
+        .sign(rell.test.keypairs.bob)
+        .run(*));
+}

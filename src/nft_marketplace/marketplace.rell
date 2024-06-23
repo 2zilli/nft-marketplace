@@ -1,84 +1,88 @@
-// /*
-// Entity representing a marketplace listing.
-// */
-// entity marketplace_listing {
-//     key nft_id: integer;  // Identifier of the NFT being listed.
-//     seller: text;  // Username of the seller.
-//     price: integer;  // Price of the NFT in tokens.
-//     created: timestamp;  // Timestamp of when the listing was created.
+/*
+Entity representing a marketplace listing.
+*/
+entity marketplace_listing {
+    key nft_id: integer;  // Identifier of the NFT being listed.
+    seller: byte_array;  // Public key of the seller.
+    price: integer;  // Price of the NFT in tokens.
+    created: timestamp;  // Timestamp of when the listing was created.
 
-//     index nft_id;  // Index to query listings by NFT ID.
-//     index seller;  // Index to query listings by seller.
-// }
+    index nft_id;  // Index to query listings by NFT ID.
+    index seller;  // Index to query listings by seller.
+}
 
-// /*
-// Operation to list an NFT for sale.
-// Params:
-// - username: text - Username of the user listing the NFT.
-// - password: text - Password of the user listing the NFT.
-// - nft_id: integer - Identifier of the NFT being listed.
-// - price: integer - Price of the NFT in tokens.
-// */
-// operation list_nft(username: text, password: text, nft_id: integer, price: integer) {
-//     // Authenticate the user. This function reverts if authentication fails.
-//     authenticate_or_revert(username, password);
+/*
+Operation to list an NFT for sale.
+Params:
+- nft_id: integer - Identifier of the NFT being listed.
+- price: integer - Price of the NFT in tokens.
+*/
+operation list_nft(nft_id: integer, price: integer) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val pubkey = signers[0];
 
-//     // Ensure the user is the owner of the NFT.
-//     require(nft @ ? { .nft_id == nft_id and .owner == username } != null, "User does not own the NFT");
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == pubkey } != null, "User is not registered");
 
-//     // Ensure the price is greater than 0.
-//     require(price > 0, "Price must be greater than 0");
+    // Ensure the user is the owner of the NFT.
+    require(nft @ ? { .nft_id == nft_id and .owner == pubkey } != null, "User does not own the NFT");
 
-//     // Create the marketplace listing.
-//     create marketplace_listing(nft_id = nft_id, seller = username, price = price, created = op_context.last_block_time);
-// }
+    // Ensure the price is greater than 0.
+    require(price > 0, "Price must be greater than 0");
 
-// /*
-// Operation to buy an NFT.
-// Params:
-// - buyer_username: text - Username of the user buying the NFT.
-// - buyer_password: text - Password of the user buying the NFT.
-// - listing_id: integer - Identifier of the marketplace listing.
-// */
-// operation buy_nft(buyer_username: text, buyer_password: text, nft_id: integer) {
-//     // Authenticate the buyer. This function reverts if authentication fails.
-//     authenticate_or_revert(buyer_username, buyer_password);
+    // Create the marketplace listing.
+    create marketplace_listing(nft_id = nft_id, seller = pubkey, price = price, created = op_context.last_block_time);
+}
 
-//     // Retrieve the listing.
-//     val listing = marketplace_listing @ { .nft_id == nft_id } (
-//         .nft_id,
-//         .seller,
-//         .price
-//     ); // reverts if there's no listing
+/*
+Operation to buy an NFT.
+Params:
+- nft_id: integer - Identifier of the marketplace listing.
+*/
+operation buy_nft(nft_id: integer) {
+    // Get the public key of the first signer.
+    val signers = op_context.get_signers();
+    require(signers.size() > 0, "No signers found");
+    val buyer_pubkey = signers[0];
 
-//     // Ensure the buyer is not the seller.
-//     require(listing.seller != buyer_username, "Seller cannot buy their own NFT");
+    // Ensure the user is registered.
+    require(registered_user @ ? { .pubkey == buyer_pubkey } != null, "User is not registered");
 
-//     // We would use the transfer operation to pay the seller, but we cannot call an operation from another operation.
+    // Retrieve the listing.
+    val listing = marketplace_listing @ { .nft_id == nft_id } (
+        .nft_id,
+        .seller,
+        .price
+    ); // reverts if there's no listing
 
-//     // Ensure the buyer has enough balance to pay the price.
-//     var buyer_balance = balance @ { .username == buyer_username } ( .amount );
-//     require(buyer_balance >= listing.price, "Insufficient balance to buy the NFT");
+    // Ensure the buyer is not the seller.
+    require(listing.seller != buyer_pubkey, "Seller cannot buy their own NFT");
 
-//     // Deduct the price from the buyer's balance.
-//     update balance @ { .username == buyer_username } ( .amount = buyer_balance - listing.price );
+    // Ensure the buyer has enough balance to pay the price.
+    var buyer_balance = balance @ { .pubkey == buyer_pubkey } ( .amount );
+    require(buyer_balance >= listing.price, "Insufficient balance to buy the NFT");
 
-//     // Add the price to the seller's balance.
-//     var seller_balance = balance @ ? { .username == listing.seller } ( .amount );
-//     if (seller_balance == null) {
-//         create balance(username = listing.seller, amount = listing.price);
-//     } else {
-//         update balance @ { .username == listing.seller } ( .amount = seller_balance + listing.price );
-//     }
+    // Deduct the price from the buyer's balance.
+    update balance @ { .pubkey == buyer_pubkey } ( .amount = buyer_balance - listing.price );
 
-//     // Transfer ownership of the NFT to the buyer.
-//     update nft @ { .nft_id == listing.nft_id } ( .owner = buyer_username );
+    // Add the price to the seller's balance.
+    var seller_balance = balance @ ? { .pubkey == listing.seller } ( .amount );
+    if (seller_balance == null) {
+        create balance(pubkey = listing.seller, amount = listing.price);
+    } else {
+        update balance @ { .pubkey == listing.seller } ( .amount = seller_balance + listing.price );
+    }
 
-//     // Remove the listing from the marketplace.
-//     delete marketplace_listing @ { .nft_id == nft_id };
-// }
+    // Transfer ownership of the NFT to the buyer.
+    update nft @ { .nft_id == listing.nft_id } ( .owner = buyer_pubkey );
 
-// /*
-// Note: It should also be possible to list collections for sale.
-// This feature is omitted for simplicity.
-// */
+    // Remove the listing from the marketplace.
+    delete marketplace_listing @ { .nft_id == nft_id };
+}
+
+/*
+Note: It should also be possible to list collections for sale.
+This feature is omitted for simplicity.
+*/

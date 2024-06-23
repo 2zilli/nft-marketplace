@@ -1,102 +1,144 @@
-// // Unit test module for NFT-related functionalities.
-// @test module;
+// Unit test module for NFT-related functionalities.
+@test module;
 
-// import nft_marketplace.*;
+import nft_marketplace.*;
 
-// // Test adding an NFT to favorites by another user
-// function test_add_nft_to_favorites_by_another_user() {
-//     // Create a user and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Alice", "alicePassword"))
-//         .op(create_user("Eve", "evePassword"))
-//         .op(mint_nft("Alice", "alicePassword", "Alice's NFT", -1))
-//         .run();
+// Test adding an NFT to favorites by another user
+function test_add_nft_to_favorites_by_another_user() {
+    // Register users and mint an NFT
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Get the NFT ID
-//     val alice_nft_id = nft @ { .owner == "Alice" } ( .nft_id );
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.eve)
+        .run();
 
-//     // Add the NFT to Eve's favorites
-//     rell.test.tx()
-//         .op(add_nft_to_favorites("Eve", "evePassword", alice_nft_id))
-//         .run();
+    rell.test.tx()
+        .op(mint_nft("Alice's NFT"))
+        .sign(rell.test.keypairs.alice)
+        .run();
 
-//     // Check if the NFT was added to Eve's favorites
-//     val alice_favorite_id = favorite_nft @ { .username == "Eve" and .nft_id == alice_nft_id } ( .nft_id );
-//     assert_equals(alice_favorite_id, alice_nft_id);
-// }
+    // Get the NFT ID
+    val alice_nft_id = nft @ { .owner == rell.test.pubkeys.alice } ( .nft_id );
 
-// // Test removing an NFT from favorites by another user
-// function test_remove_nft_from_favorites_by_another_user() {
-//     // Create a user and mint an NFT
-//     rell.test.tx()
-//         .op(create_user("Bob", "bobPassword"))
-//         .op(create_user("Frank", "frankPassword"))
-//         .op(mint_nft("Bob", "bobPassword", "Bob's NFT", -1))
-//         .run();
+    // Add the NFT to Eve's favorites
+    rell.test.tx()
+        .op(add_nft_to_favorites(alice_nft_id))
+        .sign(rell.test.keypairs.eve)
+        .run();
 
-//     // Get the NFT ID
-//     val bob_nft_id = nft @ { .owner == "Bob" } ( .nft_id );
+    // Check if the NFT was added to Eve's favorites
+    val eve_favorite_id = favorite_nft @ { .pubkey == rell.test.pubkeys.eve and .nft_id == alice_nft_id } ( .nft_id );
+    assert_equals(eve_favorite_id, alice_nft_id);
+}
 
-//     // Add the NFT to Bob's favorites
-//     rell.test.tx()
-//         .op(add_nft_to_favorites("Bob", "bobPassword", bob_nft_id))
-//         .run();
+// Test removing an NFT from favorites by another user
+function test_remove_nft_from_favorites_by_another_user() {
+    // Register users and mint an NFT
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Attempt to remove the NFT from Bob's favorites by Frank
-//     assert_fails(rell.test.tx()
-//         .op(remove_nft_from_favorites("Frank", "frankPassword", bob_nft_id))
-//         .run(*));
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.frank)
+        .run();
 
-//     // Check that the NFT is still in Bob's favorites
-//     val bob_favorite_id = favorite_nft @ ? { .username == "Bob" and .nft_id == bob_nft_id } ( .nft_id );
-//     assert_not_null(bob_favorite_id);
-// }
+    rell.test.tx()
+        .op(mint_nft("Bob's NFT"))
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-// // Test adding a collection to favorites by another user
-// function test_add_collection_to_favorites_by_another_user() {
-//     // Create a user and a collection
-//     rell.test.tx()
-//         .op(create_user("Charlie", "charliePassword"))
-//         .op(create_user("Grace", "gracePassword"))
-//         .op(create_collection("Charlie", "charliePassword", "Charlie's Collection"))
-//         .run();
+    // Get the NFT ID
+    val bob_nft_id = nft @ { .owner == rell.test.pubkeys.bob } ( .nft_id );
 
-//     // Get the collection ID
-//     val charlie_collection_id = nft_collection @ { .owner == "Charlie" } ( .collection_id );
+    // Add the NFT to Bob's favorites
+    rell.test.tx()
+        .op(add_nft_to_favorites(bob_nft_id))
+        .sign(rell.test.keypairs.bob)
+        .run();
 
-//     // Add the collection to Grace's favorites
-//     rell.test.tx()
-//         .op(add_collection_to_favorites("Grace", "gracePassword", charlie_collection_id))
-//         .run();
+    // Attempt to remove the NFT from Bob's favorites by Frank
+    assert_fails(rell.test.tx()
+        .op(remove_nft_from_favorites(bob_nft_id))
+        .sign(rell.test.keypairs.frank)
+        .run(*));
 
-//     // Check if the collection was added to Grace's favorites
-//     val grace_favorite_id = favorite_collection @ { .username == "Grace" and .collection_id == charlie_collection_id } ( .collection_id );
-//     assert_equals(grace_favorite_id, charlie_collection_id);
-// }
+    // Check that the NFT is still in Bob's favorites
+    val bob_favorite_id = favorite_nft @ ? { .pubkey == rell.test.pubkeys.bob and .nft_id == bob_nft_id } ( .nft_id );
+    assert_not_null(bob_favorite_id);
+}
 
-// // Test removing a collection from favorites by another user
-// function test_remove_collection_from_favorites_by_another_user() {
-//     // Create a user and a collection
-//     rell.test.tx()
-//         .op(create_user("Dave", "davePassword"))
-//         .op(create_user("Henry", "henryPassword"))
-//         .op(create_collection("Dave", "davePassword", "Dave's Collection"))
-//         .run();
+// Test adding a collection to favorites by another user
+function test_add_collection_to_favorites_by_another_user() {
+    // Register users and create a collection
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.charlie)
+        .run();
 
-//     // Get the collection ID
-//     val dave_collection_id = nft_collection @ { .owner == "Dave" } ( .collection_id );
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.grace)
+        .run();
 
-//     // Add the collection to Dave's favorites
-//     rell.test.tx()
-//         .op(add_collection_to_favorites("Dave", "davePassword", dave_collection_id))
-//         .run();
+    rell.test.tx()
+        .op(create_collection("Charlie's Collection"))
+        .sign(rell.test.keypairs.charlie)
+        .run();
 
-//     // Attempt to remove the collection from Dave's favorites by Henry
-//     assert_fails(rell.test.tx()
-//         .op(remove_collection_from_favorites("Henry", "henryPassword", dave_collection_id))
-//         .run(*));
+    // Get the collection ID
+    val charlie_collection_id = nft_collection @ { .owner == rell.test.pubkeys.charlie } ( .collection_id );
 
-//     // Check that the collection is still in Dave's favorites
-//     val dave_favorite_id = favorite_collection @ ? { .username == "Dave" and .collection_id == dave_collection_id } ( .collection_id );
-//     assert_not_null(dave_favorite_id);
-// }
+    // Add the collection to Grace's favorites
+    rell.test.tx()
+        .op(add_collection_to_favorites(charlie_collection_id))
+        .sign(rell.test.keypairs.grace)
+        .run();
+
+    // Check if the collection was added to Grace's favorites
+    val grace_favorite_id = favorite_collection @ { .pubkey == rell.test.pubkeys.grace and .collection_id == charlie_collection_id } ( .collection_id );
+    assert_equals(grace_favorite_id, charlie_collection_id);
+}
+
+// Test removing a collection from favorites by another user
+function test_remove_collection_from_favorites_by_another_user() {
+    // Register users and create a collection
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.dave)
+        .run();
+
+    rell.test.tx()
+        .op(register_user())
+        .sign(rell.test.keypairs.heidi)
+        .run();
+
+    rell.test.tx()
+        .op(create_collection("Dave's Collection"))
+        .sign(rell.test.keypairs.dave)
+        .run();
+
+    // Get the collection ID
+    val dave_collection_id = nft_collection @ { .owner == rell.test.pubkeys.dave } ( .collection_id );
+
+    // Add the collection to Dave's favorites
+    rell.test.tx()
+        .op(add_collection_to_favorites(dave_collection_id))
+        .sign(rell.test.keypairs.dave)
+        .run();
+
+    // Attempt to remove the collection from Dave's favorites by Henry
+    assert_fails(rell.test.tx()
+        .op(remove_collection_from_favorites(dave_collection_id))
+        .sign(rell.test.keypairs.heidi)
+        .run(*));
+
+    // Check that the collection is still in Dave's favorites
+    val dave_favorite_id = favorite_collection @ ? { .pubkey == rell.test.pubkeys.dave and .collection_id == dave_collection_id } ( .collection_id );
+    assert_not_null(dave_favorite_id);
+}
