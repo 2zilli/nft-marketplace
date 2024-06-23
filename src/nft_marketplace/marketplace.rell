@@ -78,6 +78,15 @@ operation buy_nft(nft_id: integer) {
     // Transfer ownership of the NFT to the buyer.
     update nft @ { .nft_id == listing.nft_id } ( .owner = buyer_pubkey );
 
+    // Record the transaction from the buyer to the seller.
+    var tx_id = token_transfer @ ? { } ( @sort_desc .tx_id ) limit 1;
+    if (tx_id == null) {
+        tx_id = 0;
+    } else {
+        tx_id++;
+    }
+    create token_transfer(tx_id = tx_id, from_pubkey = buyer_pubkey, to_pubkey = listing.seller, amount = listing.price, timestamp = op_context.last_block_time);
+
     // Remove the listing from the marketplace.
     delete marketplace_listing @ { .nft_id == nft_id };
 }

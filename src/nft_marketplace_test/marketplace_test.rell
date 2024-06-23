@@ -7,6 +7,10 @@ function test_list_nft_for_sale() {
     // Register a user and mint an NFT
     rell.test.tx()
         .op(register_user())
+        .sign(rell.test.keypairs.alice)
+        .run();
+
+    rell.test.tx()
         .op(mint_nft("Alice's NFT"))
         .sign(rell.test.keypairs.alice)
         .run();
@@ -75,6 +79,10 @@ function test_buy_nft() {
 
     val alice_balance = balance @ { .pubkey == rell.test.pubkeys.alice } ( .amount );
     assert_equals(alice_balance, 100);
+
+    // Check if the transaction was logged
+    val log_amount = token_transfer @ { .from_pubkey == rell.test.pubkeys.bob and .to_pubkey == rell.test.pubkeys.alice } ( .amount );
+    assert_equals(log_amount, 100);
 }
 
 // Test listing an NFT not owned by the user
